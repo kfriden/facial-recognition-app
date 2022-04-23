@@ -15,7 +15,7 @@ const ParticleBackground = () => {
     console.log(container);
   };
   return (
-    <Particles
+    <Particles className="particles"
       id="tsparticles"
       init={particlesInit}
       loaded={particlesLoaded}
