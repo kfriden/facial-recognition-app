@@ -7,12 +7,12 @@ import FaceRecognition from './components/FaceRecognition/FaceRecognition';
 import Logo from './components/Logo/logo';
 import ImageLinkForm from './components/ImageLinkForm/imagelinkform';
 import Rank from './components/Rank/rank';
-import Clarifai from 'clarifai';
+// import Clarifai from 'clarifai';
 import './App.css';
 
-const app = new Clarifai.App({
-  apiKey: '2faf493c9735436d97d85ceb9b26f88d'
-});
+// const app = new Clarifai.App({
+//   apiKey: '2faf493c9735436d97d85ceb9b26f88d'
+// });
 
 
 class App extends Component {
@@ -46,17 +46,17 @@ class App extends Component {
   }
 
   calculateFaceLocation = (data) => {
-    const clarifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box;
-    const image = document.getElementById('inputimage');
+    const clarifaiFace = JSON.parse(data, null, 2).outputs[0].data.regions[0]
+     .region_info.bounding_box;
+    const image = document.getElementById("inputimage");
     const width = Number(image.width);
     const height = Number(image.height);
     return {
       leftCol: clarifaiFace.left_col * width,
       topRow: clarifaiFace.top_row * height,
-      rightCol: width - clarifaiFace.right_col * width,
-      bottomRow: height - clarifaiFace.bottom_row * height,
+      rightCol: width - (clarifaiFace.right_col * width),
+      bottomRow: height - (clarifaiFace.bottom_row * height),
     };
-
   }
 
 
@@ -70,35 +70,65 @@ class App extends Component {
     this.setState({input: event.target.value});
   }
 
-  onButtonSubmit = () => {
-    this.setState({imageUrl: this.state.input});
-   
-    // HEADS UP! Sometimes the Clarifai Models can be down or not working as they are constantly getting updated.
-    // A good way to check if the model you are using is up, is to check them on the clarifai website. For example,
-    // for the Face Detect Mode: https://www.clarifai.com/models/face-detection
-    // If that isn't working, then that means you will have to wait until their servers are back up. 
+  onButtonSubmit =() =>{
+    this.setState({imageUrl:this.state.input})
+// URL of image to use. Change this to your image.
+// const IMAGE_URL = 'https://samples.clarifai.com/metro-north.jpg';
 
-    app.models.predict('face-detection', this.state.input)
-      .then(response => {
-        console.log('hi', response)
-        if (response) {
-          fetch('http://localhost:3000/image', {
-            method: 'put',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              id: this.state.user.id
-            })
-          })
-            .then(response => response.json())
-            .then(count => {
-              this.setState(Object.assign(this.state.user, {entries: count}))
-            })
+const raw = JSON.stringify({
+  "user_app_id": {
+    "user_id": "kfriden",
+    "app_id": "326eed25589749c5b7e8562c23146f1d"
+  },
+  "inputs": [
+      {
+          "data": {
+              "image": {
+                  "url": this.state.input
+              }
+          }
+      }
+  ]
+});
 
-        }
-        this.displayFaceBox(this.calculateFaceLocation(response))
+const requestOptions = {
+    method: 'POST',
+    headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Key ' + '2faf493c9735436d97d85ceb9b26f88d'
+    },
+    body: raw
+};
+
+
+fetch(
+  "https://api.clarifai.com/v2/models/f76196b43bbd45c99b4f3cd8e8b40a8a/outputs", requestOptions
+ 
+)
+.then((response) => response.text())
+.then((response) => {
+  if (response){
+    fetch('http://localhost:3000/image', {
+      method: 'put',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        id: this.state.user.id
       })
-      .catch(err => console.log(err));
+    })
+    .then(response => response.json())
+    .then(count => {
+      this.setState(Object.assign(this.state.user, {entries: count}));
+    });
   }
+  this.displayFaceBox(this.calculateFaceLocation(response));
+})
+.catch((error) => console.log('error', error));
+}
+  
+  
+
+ 
+ 
 
   onRouteChange = (route) => {
     if (route === 'signout') {
